@@ -20,23 +20,23 @@ args = parser.parse_args()
 def process(model, dataloader, optimizer, type = 'fea'):
 
 	c, ei, ev, v, n_cs, n_vs, n_csm, n_vsm, cand_scores = dataloader
-	batched_states = (c, ei, ev, v, n_cs, n_vs, n_csm, n_vsm)  
+	batched_states = (c, ei, ev, v, n_cs, n_vs, n_csm, n_vsm)
 
 	with tf.GradientTape() as tape:
-		logits = model(batched_states, tf.convert_to_tensor(True)) 
+		logits = model(batched_states, tf.convert_to_tensor(True))
 		loss = tf.keras.metrics.mean_squared_error(cand_scores, logits)
 		loss = tf.reduce_mean(loss)
 	grads = tape.gradient(target=loss, sources=model.variables)
 	optimizer.apply_gradients(zip(grads, model.variables))
-	
-	logits = model(batched_states, tf.convert_to_tensor(False)) 
+
+	logits = model(batched_states, tf.convert_to_tensor(False))
 	loss = tf.keras.metrics.mean_squared_error(cand_scores, logits)
 	loss = tf.reduce_mean(loss)
 
 	return_loss = loss.numpy()
 	errs = None
 	err_rate = None
-	
+
 	if type == "fea":
 		errs_fp = np.sum((logits.numpy() > 0.5) & (cand_scores.numpy() < 0.5))
 		errs_fn = np.sum((logits.numpy() < 0.5) & (cand_scores.numpy() > 0.5))
@@ -123,11 +123,11 @@ with tf.device("GPU:"+str(gpu_index)):
 	count_restart = 0
 	err_best = 2
 	loss_best = 1e10
-	
+
 	### MAIN LOOP ###
 	while epoch <= max_epochs:
 		train_loss,errs,err_rate = process(model, train_data, optimizer, type = args.type)
-			
+
 		if args.type == "fea":
 			print(f"EPOCH: {epoch}, TRAIN LOSS: {train_loss}, ERRS: {errs}, ERRATE: {err_rate}")
 			if err_rate < err_best:
@@ -140,7 +140,7 @@ with tf.device("GPU:"+str(gpu_index)):
 				model.save_state(model_path)
 				print("model saved to:", model_path)
 				loss_best = train_loss
-		
+
 		## If the loss does not go down, we restart the training to re-try another initialization.
 		if epoch == 200 and count_restart < 3 and (train_loss > loss_init * 0.8 or (err_rate != None and err_rate > 0.5)):
 			print("Fail to reduce loss, restart...")
@@ -149,11 +149,11 @@ with tf.device("GPU:"+str(gpu_index)):
 			loss_init,_,_ = process(model, train_data, optimizer, type = args.type)
 			epoch = 0
 			count_restart += 1
-			
+
 		epoch += 1
-	
+
 	print("Count of restart:", count_restart)
 	model.summary()
-	
-	
+
+
 
