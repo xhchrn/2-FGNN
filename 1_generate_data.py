@@ -193,10 +193,11 @@ if __name__ == "__main__":
         outpath = os.outpath.join(args.data_dir, f'unfoldable_{adopted}')
         os.makedirs(outpath, exist_ok=True)
         model.writeProblem(filename=os.outpath.join(outpath, "model.mps"))
-        np.savetxt(os.path.join(outpath, 'ConFeatures.csv'), cons_feats, delimiter = ',', fmt = '%10.5f')
-        np.savetxt(os.path.join(outpath, 'EdgeFeatures.csv'), edge_feats, fmt = '%10.5f')
-        np.savetxt(os.path.join(outpath, 'EdgeIndices.csv'), edge_inds, delimiter = ',', fmt = '%d')
-        np.savetxt(os.path.join(outpath, 'VarFeatures.csv'), var_feats, delimiter = ',', fmt = '%10.5f')
+        np.savetxt(os.path.join(outpath, 'ConFeatures.csv'), cons_feats, delimiter=',', fmt='%10.5f')
+        np.savetxt(os.path.join(outpath, 'EdgeFeatures.csv'), edge_feats, delimiter=',', fmt='%10.5f')
+        np.savetxt(os.path.join(outpath, 'EdgeIndices.csv'), edge_inds, delimiter=',', fmt='%d')
+        np.savetxt(os.path.join(outpath, 'VarFeatures.csv'), var_feats, delimiter=',', fmt='%10.5f')
+        np.savetxt(os.path.join(outpath, 'SBScores.csv'), sb_scores, delimiter=',', fmt='%10.5f')
 
         adopted += 1
 
