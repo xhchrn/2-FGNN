@@ -190,9 +190,9 @@ if __name__ == "__main__":
         if sb_scores is None:
             continue
 
-        outpath = os.outpath.join(args.data_dir, f'unfoldable_{adopted}')
+        outpath = os.path.join(args.data_dir, f'unfoldable_{adopted}')
         os.makedirs(outpath, exist_ok=True)
-        model.writeProblem(filename=os.outpath.join(outpath, "model.mps"))
+        model.writeProblem(filename=os.path.join(outpath, "model.mps"))
         np.savetxt(os.path.join(outpath, 'ConFeatures.csv'), cons_feats, delimiter = ',', fmt = '%10.5f')
         np.savetxt(os.path.join(outpath, 'EdgeFeatures.csv'), edge_feats, fmt = '%10.5f')
         np.savetxt(os.path.join(outpath, 'EdgeIndices.csv'), edge_inds, delimiter = ',', fmt = '%d')
