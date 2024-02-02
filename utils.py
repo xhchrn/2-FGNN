@@ -102,6 +102,8 @@ def second_order_fgnn_conv_numpy(s_input, t_input):
 
 
 if __name__ == "__main__":
+    sess = tf.InteractiveSession()
+
     s_input = np.random.normal(size=(3,4,8))
     t_input = np.random.normal(size=(4,4,8))
 
