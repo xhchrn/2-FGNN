@@ -158,12 +158,12 @@ class GCNPolicy(K.Model):
         # save input signature for compilation
         self.input_signature = [
             (
-                tf.TensorSpec(shape=[None, self.cons_nfeats], dtype=tf.float32),
-                tf.TensorSpec(shape=[2, None], dtype=tf.int32),
-                tf.TensorSpec(shape=[None, self.edge_nfeats], dtype=tf.float32),
-                tf.TensorSpec(shape=[None, self.var_nfeats], dtype=tf.float32),
+                tf.contrib.eager.TensorSpec(shape=[None, self.cons_nfeats], dtype=tf.float32),
+                tf.contrib.eager.TensorSpec(shape=[2, None], dtype=tf.int32),
+                tf.contrib.eager.TensorSpec(shape=[None, self.edge_nfeats], dtype=tf.float32),
+                tf.contrib.eager.TensorSpec(shape=[None, self.var_nfeats], dtype=tf.float32),
             ),
-            tf.TensorSpec(shape=[], dtype=tf.bool),
+            tf.contrib.eager.TensorSpec(shape=[], dtype=tf.bool),
         ]
 
         # save / restore fix
@@ -173,14 +173,13 @@ class GCNPolicy(K.Model):
         cons_shape, ei_shape, ef_shape, var_shape = input_shapes
         s_shape = (None, None, self.emb_size)
         t_shape = (None, None, self.emb_size)
-        emb_shape = (None, self.emb_size)
 
         if not self.built:
             self.s_embedding.build((cons_shape, var_shape, ef_shape, ei_shape))
             self.t_embedding.build((var_shape, var_shape, ef_shape, ei_shape))
             self.conv_st_1.build((s_shape, t_shape))
             self.conv_st_2.build((s_shape, t_shape))
-            self.output_module.build(emb_shape)
+            self.output_module.build((None, self.emb_size * 2))
             self.built = True
 
     def call(self, inputs, training):
@@ -210,11 +209,11 @@ class GCNPolicy(K.Model):
                                       d_indices)
 
         # Graph convolutions - layer 1
-        s_features, t_features = self.conv_st_1(s_features, t_features)
+        s_features, t_features = self.conv_st_1((s_features, t_features))
         s_features = self.activation(s_features)
         t_features = self.activation(t_features)
         # Graph convolutions - layer 2
-        s_features, t_features = self.conv_st_2(s_features, t_features)
+        s_features, t_features = self.conv_st_2((s_features, t_features))
         s_features = self.activation(s_features)
         t_features = self.activation(t_features)
 
