@@ -126,7 +126,7 @@ class GCNPolicy(K.Model):
         self.s_embedding = SecondOrderEmbeddingLayer(self.emb_size,
                                                      self.activation,
                                                      self.initializer)
-        self.s_embedding = SecondOrderEmbeddingLayer(self.emb_size,
+        self.t_embedding = SecondOrderEmbeddingLayer(self.emb_size,
                                                      self.activation,
                                                      self.initializer)
 
@@ -150,17 +150,10 @@ class GCNPolicy(K.Model):
         ])
 
         # build model right-away
-        self.build([
-            (None, self.cons_nfeats),
-            (2, None),
-            (None, self.edge_nfeats),
-            (None, self.var_nfeats),
-            (None, ),
-            (None, ),
-        ])
-
-        # save / restore fix
-        self.variables_topological_order = [v.name for v in self.variables]
+        self.build([(None, self.cons_nfeats),
+                    (2, None),
+                    (None, self.edge_nfeats),
+                    (None, self.var_nfeats),])
 
         # save input signature for compilation
         self.input_signature = [
@@ -169,44 +162,37 @@ class GCNPolicy(K.Model):
                 tf.TensorSpec(shape=[2, None], dtype=tf.int32),
                 tf.TensorSpec(shape=[None, self.edge_nfeats], dtype=tf.float32),
                 tf.TensorSpec(shape=[None, self.var_nfeats], dtype=tf.float32),
-                tf.TensorSpec(shape=[None], dtype=tf.int32),
-                tf.TensorSpec(shape=[None], dtype=tf.int32),
             ),
             tf.TensorSpec(shape=[], dtype=tf.bool),
         ]
 
+        # save / restore fix
+        self.variables_topological_order = [v.name for v in self.variables]
 
     def build(self, input_shapes):
-        # variable features: [num_vars, dim_vars]
-        # constraint_features: [num_conss, dim_conss]
-        # edge_features: [num_nnz, dim_edges]
-        # edge_indices: [2, num_nnz]
-
-        c_shape, ei_shape, ev_shape, v_shape, nc_shape, nv_shape = input_shapes
-        emb_shape = [None, self.emb_size]
+        cons_shape, ei_shape, ef_shape, var_shape = input_shapes
+        s_shape = (None, None, self.emb_size)
+        t_shape = (None, None, self.emb_size)
+        emb_shape = (None, self.emb_size)
 
         if not self.built:
-            self.cons_embedding.build(c_shape)
-            self.edge_embedding.build(ev_shape)
-            self.var_embedding.build(v_shape)
-            self.conv_v_to_c.build((emb_shape, ei_shape, emb_shape, emb_shape))
-            self.conv_c_to_v.build((emb_shape, ei_shape, emb_shape, emb_shape))
-            self.conv_v_to_c2.build((emb_shape, ei_shape, emb_shape, emb_shape))
-            self.conv_c_to_v2.build((emb_shape, ei_shape, emb_shape, emb_shape))
-            if self.is_graph_level:
-                self.output_module.build([None, 2 * self.emb_size])
-            else:
-                self.output_module.build(emb_shape)
+            self.s_embedding.build((cons_shape, var_shape, ef_shape, ei_shape))
+            self.t_embedding.build((var_shape, var_shape, ef_shape, ei_shape))
+            self.conv_st_1.build((s_shape, t_shape))
+            self.conv_st_2.build((s_shape, t_shape))
+            self.output_module.build(emb_shape)
             self.built = True
 
     def call(self, inputs, training):
-
+        """
+        Args:
+            - constraint_features: [num_conss, dim_conss]
+            - edge_indices: [2, num_nnz]
+            - edge_features: [num_nnz, dim_edges]
+            - variable features: [num_vars, dim_vars]
+        """
         (constraint_features, edge_indices, edge_features,
          variable_features) = inputs
-
-        num_vars = int(variable_features.shape[0])
-        num_conss = int(constraint_features.shape[0])
-        num_nnz = int(edge_indices.shape[0])
 
         # Conss-Vars Embeddings
         s_features = self.s_embedding(constraint_features,
@@ -215,12 +201,13 @@ class GCNPolicy(K.Model):
                                       edge_indices)
 
         # Vars-Vars Embeddings
-        delta_indices = tf.stack([tf.range(num_vars), tf.range(num_vars)], axis=0)
-        delta_feats = tf.ones(shape=[num_vars, 1], dtype=edge_features.dtype)
+        num_vars = int(variable_features.shape[0])
+        d_indices = tf.stack([tf.range(num_vars), tf.range(num_vars)], axis=0)
+        d_feats = tf.ones(shape=[num_vars, 1], dtype=edge_features.dtype)
         t_features = self.t_embedding(variable_features,
                                       variable_features,
-                                      delta_feats,
-                                      delta_indices)
+                                      d_feats,
+                                      d_indices)
 
         # Graph convolutions - layer 1
         s_features, t_features = self.conv_st_1(s_features, t_features)
@@ -232,13 +219,6 @@ class GCNPolicy(K.Model):
         t_features = self.activation(t_features)
 
         # Summation of features over variables
-        # s_scattered = tf.scatter_nd(updates=s_features,
-        #                             indices=s_indices[1],
-        #                             shape=[num_vars, self.emb_size])
-        # t_scattered = tf.scatter_nd(updates=t_features,
-        #                             indices=t_indices[1],
-        #                             shape=[num_vars, self.emb_size])
-        # joint_features = tf.concat([s_scattered, t_scattered], axis=1)
         joint_features = tf.concat([tf.reduce_sum(s_features, axis=0),
                                     tf.reduce_sum(t_features, axis=0)],
                                    axis=1)
@@ -258,3 +238,16 @@ class GCNPolicy(K.Model):
                 v.assign(pickle.load(f))
 
 
+if __name__ == "__main__":
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    tf.enable_eager_execution(config)
+    tf.executing_eagerly()
+
+    net = GCNPolicy(8, 2, 1 ,4)
+    conss_feats = tf.random_normal(shape=(3,2))
+    edge_indices = tf.cast(tf.random_uniform(shape=(2,7))*5, tf.int32)
+    edge_feats = tf.random_normal(shape=(7,1))
+    var_feats = tf.random_normal(shape=(5,4))
+    out = net((conss_feats, edge_indices, edge_feats, var_feats), False)
+    print(out)
