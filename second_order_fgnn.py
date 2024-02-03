@@ -1,3 +1,9 @@
+# -*- coding=utf-8 -*-
+# tensorflow=1.15.0
+
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+
 import numpy as np
 import pickle
 import tensorflow as tf
@@ -158,12 +164,12 @@ class GCNPolicy(K.Model):
         # save input signature for compilation
         self.input_signature = [
             (
-                tf.contrib.eager.TensorSpec(shape=[None, self.cons_nfeats], dtype=tf.float32),
-                tf.contrib.eager.TensorSpec(shape=[2, None], dtype=tf.int32),
-                tf.contrib.eager.TensorSpec(shape=[None, self.edge_nfeats], dtype=tf.float32),
-                tf.contrib.eager.TensorSpec(shape=[None, self.var_nfeats], dtype=tf.float32),
+                tf.TensorSpec(shape=[None, self.cons_nfeats], dtype=tf.float32),
+                tf.TensorSpec(shape=[2, None], dtype=tf.int32),
+                tf.TensorSpec(shape=[None, self.edge_nfeats], dtype=tf.float32),
+                tf.TensorSpec(shape=[None, self.var_nfeats], dtype=tf.float32),
             ),
-            tf.contrib.eager.TensorSpec(shape=[], dtype=tf.bool),
+            tf.TensorSpec(shape=[], dtype=tf.bool),
         ]
 
         # save / restore fix
@@ -238,15 +244,15 @@ class GCNPolicy(K.Model):
 
 
 if __name__ == "__main__":
-    config = tf.ConfigProto()
+    config = tf.compat.v1.ConfigProto()
     config.gpu_options.allow_growth = True
-    tf.enable_eager_execution(config)
+    tf.compat.v1.enable_eager_execution(config)
     tf.executing_eagerly()
 
     net = GCNPolicy(8, 2, 1 ,4)
-    conss_feats = tf.random_normal(shape=(3,2))
-    edge_indices = tf.cast(tf.random_uniform(shape=(2,7))*5, tf.int32)
-    edge_feats = tf.random_normal(shape=(7,1))
-    var_feats = tf.random_normal(shape=(5,4))
+    conss_feats = tf.random.normal(shape=(3,2))
+    edge_indices = tf.cast(tf.random.uniform(shape=(2,7))*5, tf.int32)
+    edge_feats = tf.random.normal(shape=(7,1))
+    var_feats = tf.random.normal(shape=(5,4))
     out = net((conss_feats, edge_indices, edge_feats, var_feats), False)
     print(out)
