@@ -2,6 +2,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as K
 
+from pathlib import Path
+
 def get_dense_edge_indices(dim1, dim2):
     """Return a list of edge indices of a dense graph.
 
@@ -23,6 +25,68 @@ def get_dense_edge_indices(dim1, dim2):
     t2 = tf.reshape(tf.tile(r2, [dim1,1]), [-1])
 
     return tf.stack([t1,t2], axis=0)
+
+
+def load_data_folder(dir_path):
+    """Load a dataset.
+
+    Read information of MILP problems stored in `dir_path` as sub-directories.
+    Note that this function can only process MILP problems with of the same
+    numbers of variables, constraints and nonzeros in coefficient matrices.
+
+    The structure of `dir_path` should be:
+    dir_path
+    |
+    |--- problem_0
+    |    |-- ConFeatures.csv
+    |    |-- EdgeFeatures.csv
+    |    |-- EdgeIndices.csv
+    |    |-- model.mps
+    |    |-- SBScores.csv
+    |    |-- VarFeatures.csv
+    |
+    |--- problem_1
+    |    |-- ...
+    |
+    |--- ...
+
+    Returns:
+        - var_features: numpy.ndarray of shape (num_data, num_vars, var_dim)
+        - cons_features: numpy.ndarray of shape (num_data, num_conss, cons_dim)
+        - edge_features: numpy.ndarray of shape (num_data, num_edges, edge_dim)
+        - edge_indices: numpy.ndarray of shape (num_data, 2, num_edges)
+        - branch_scores: numpy.ndarray of shape (num_data, num_vars)
+        - num_vars: int, the number of variables in each MILP problem
+        - num_conss: int, the number of constraints in each MILP problem
+        - num_edges: int, the number of edges in each MILP problem
+        - var_dim: int, the dimension of the variable features
+        - cons_dim: int, the dimension of the constraint features
+        - edge_dim: int, the dimension of the edge features
+    """
+    dir_path = Path(dir_path)
+
+
+    (var_features, cons_features, edge_features, edge_indices,
+     branch_scores) = [],[],[],[],[]
+    for prob in dir_path.glob("*"):
+        var_features.append(np.loadtxt(prob/'VarFeatures.csv', delimiter=','))
+        cons_features.append(np.loadtxt(prob/'ConFeatures.csv', delimiter=','))
+        edge_features.append(np.loadtxt(prob/'EdgeFeatures.csv', delimiter=','))
+        edge_indices.append(np.loadtxt(prob/'EdgeIndices.csv', delimiter=','))
+        branch_scores.append(np.loadtxt(prob/'SBScores.csv', delimiter=','))
+
+    var_features = np.stack(var_features).astype(np.float32)
+    cons_features = np.stack(cons_features).astype(np.float32)
+    edge_features = np.stack(edge_features).astype(np.float32)
+    edge_indices = np.stack(edge_indices).astype(np.int32).transpose(0,2,1)
+    branch_scores = np.stack(branch_scores).astype(np.float32)
+    num_data, num_vars, var_dim = var_features.shape
+    _, num_conss, cons_dim = cons_features.shape
+    num_edges, edge_dim = edge_features.shape[1], 1
+
+    return (var_features, cons_features, edge_features, edge_indices,
+            branch_scores, num_vars, num_conss, num_edges,
+            var_dim, cons_dim, edge_dim)
 
 
 class SecondOrderFGNNConvolution(K.Model):

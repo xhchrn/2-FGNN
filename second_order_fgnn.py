@@ -250,9 +250,9 @@ if __name__ == "__main__":
     tf.executing_eagerly()
 
     net = GCNPolicy(8, 2, 1 ,4)
-    conss_feats = tf.random.normal(shape=(3,2))
+    cons_feats = tf.random.normal(shape=(3,2))
     edge_indices = tf.cast(tf.random.uniform(shape=(2,7))*5, tf.int32)
     edge_feats = tf.random.normal(shape=(7,1))
     var_feats = tf.random.normal(shape=(5,4))
-    out = net((conss_feats, edge_indices, edge_feats, var_feats), False)
+    out = net((cons_feats, edge_indices, edge_feats, var_feats), False)
     print(out)
