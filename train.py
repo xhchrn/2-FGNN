@@ -45,22 +45,29 @@ def process(model, dataset, optimizer):
     (cons_features, edge_indices, edge_features,
      var_features, branch_scores)  = dataset
 
-    num_samples = cons_features.shape[0]
-    order = np.random.shuffle(np.arange(num_samples, dtype=int))
+    num_samples = int(cons_features.shape[0])
+    order = np.arange(num_samples, dtype=int)
+    np.random.shuffle(order)
 
+    train_vars = model.variables
+    accum_gradient = [tf.zeros_like(this_var) for this_var in train_vars]
     accumulated_loss = 0.0
-    with tf.GradientTape() as tape:
-        for i in tqdm.tqdm(order):
+    for i in tqdm.tqdm(order):
+        with tf.GradientTape() as tape:
             inputs = (cons_features[i], edge_indices[i], edge_features[i],
                       var_features[i])
             out = model(inputs, training=True)
 
             loss = tf.keras.metrics.mean_squared_error(branch_scores[i], out)
             loss = tf.reduce_mean(loss)
-            grads = tape.gradient(target=loss, sources=model.variables)
-            optimizer.apply_gradients(zip(grads, model.variables))
+            grads = tape.gradient(target=loss, sources=train_vars)
 
+            accum_gradient = [(accum_grad + grad)
+                              for accum_grad,grad in zip(accum_gradient, grads)]
             accumulated_loss += loss.numpy()
+
+    accum_gradient = [this_grad / num_samples for this_grad in accum_gradient]
+    optimizer.apply_gradients(zip(grads, train_vars))
 
     return accumulated_loss / num_samples
 
@@ -75,7 +82,7 @@ if __name__ == "__main__":
 
     ## Set up model
     os.makedirs(args.save_path, exist_ok=True)
-    model_save_path = os.path.joint(args.save_path, 'model.pkl')
+    model_save_path = os.path.join(args.save_path, 'model.pkl')
 
     # Set up TensorFlow Eager mode
     config = tf.compat.v1.ConfigProto()
@@ -84,12 +91,13 @@ if __name__ == "__main__":
     tf.executing_eagerly()
     # Set up GPU device
     tf.config.set_soft_device_placement(True)
-    gpus = tf.config.list_physical_devices('GPU')
-    tf.config.set_visible_devices(gpus[args.gpu], 'GPU')
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    tf.config.experimental.set_visible_devices(gpus[args.gpu], 'GPU')
     tf.config.experimental.set_memory_growth(gpus[args.gpu], True)
 
+
     np.random.seed(args.seed)
-    tf.random.set_seed(args.seed+1)
+    tf.compat.v1.random.set_random_seed(args.seed+1)
     with tf.device("GPU:"+str(args.gpu)):
         var_features = tf.constant(var_features, dtype=tf.float32)
         cons_features = tf.constant(cons_features, dtype=tf.float32)
@@ -102,11 +110,11 @@ if __name__ == "__main__":
         # Initialization
         model = MODEL_DICT[args.model](args.emb_size, cons_dim, edge_dim, var_dim)
         optimizer = tf.keras.optimizers.Adam(learning_rate=args.lr)
+
         loss_best = 1e10
 
         ### MAIN LOOP ###
-        # while epoch <= args.num_epochs:
-        for epoch in args.num_epochs:
+        for epoch in range(args.num_epochs):
             train_loss = process(model, train_data, optimizer)
 
             print(f"EPOCH: {epoch}, TRAIN LOSS: {train_loss}")

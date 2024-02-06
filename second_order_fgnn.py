@@ -39,11 +39,11 @@ class SecondOrderEmbeddingLayer(K.Model):
         first_gathered = tf.gather(first_feats, axis=0, indices=dense_indices[0])
         second_gathered = tf.gather(second_feats, axis=0, indices=dense_indices[1])
 
-        scatter_indices = edge_indices[0] * first_feats.shape[0] + edge_indices[1]
+        scatter_indices = edge_indices[0] * second_feats.shape[0] + edge_indices[1]
         edge_gathered = tf.scatter_nd(
             updates=edge_feats,
             indices=tf.expand_dims(scatter_indices, axis=1),
-            shape=[dense_indices.shape[1], 1]
+            shape=[dense_indices.shape[1], edge_feats.shape[-1]]
         )
 
         joint_features = tf.concat(
@@ -126,7 +126,7 @@ class GCNPolicy(K.Model):
         self.var_nfeats = nVarF
 
         self.activation = K.activations.relu
-        self.initializer = K.initializers.Orthogonal()
+        self.initializer = tf.keras.initializers.RandomNormal(0.0, 0.2)
 
         # Embeddings
         self.s_embedding = SecondOrderEmbeddingLayer(self.emb_size,
@@ -228,7 +228,8 @@ class GCNPolicy(K.Model):
                                     tf.reduce_sum(t_features, axis=0)],
                                    axis=1)
         output = self.output_module(joint_features)
-        return output
+
+        return tf.squeeze(output, -1)
 
     def save_state(self, path):
         with open(path, 'wb') as f:

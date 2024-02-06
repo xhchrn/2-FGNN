@@ -69,10 +69,10 @@ def load_data_folder(dir_path):
     (var_features, cons_features, edge_features, edge_indices,
      branch_scores) = [],[],[],[],[]
     for prob in dir_path.glob("*"):
-        var_features.append(np.loadtxt(prob/'VarFeatures.csv', delimiter=','))
-        cons_features.append(np.loadtxt(prob/'ConFeatures.csv', delimiter=','))
-        edge_features.append(np.loadtxt(prob/'EdgeFeatures.csv', delimiter=','))
-        edge_indices.append(np.loadtxt(prob/'EdgeIndices.csv', delimiter=','))
+        var_features.append(np.loadtxt(prob/'VarFeatures.csv', delimiter=',', ndmin=2))
+        cons_features.append(np.loadtxt(prob/'ConFeatures.csv', delimiter=',', ndmin=2))
+        edge_features.append(np.loadtxt(prob/'EdgeFeatures.csv', delimiter=',', ndmin=2))
+        edge_indices.append(np.loadtxt(prob/'EdgeIndices.csv', delimiter=',', ndmin=2))
         branch_scores.append(np.loadtxt(prob/'SBScores.csv', delimiter=','))
 
     var_features = np.stack(var_features).astype(np.float32)
@@ -82,7 +82,7 @@ def load_data_folder(dir_path):
     branch_scores = np.stack(branch_scores).astype(np.float32)
     num_data, num_vars, var_dim = var_features.shape
     _, num_conss, cons_dim = cons_features.shape
-    num_edges, edge_dim = edge_features.shape[1], 1
+    _, num_edges, edge_dim = edge_features.shape
 
     return (var_features, cons_features, edge_features, edge_indices,
             branch_scores, num_vars, num_conss, num_edges,
