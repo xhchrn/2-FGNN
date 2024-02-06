@@ -8,8 +8,9 @@ import numpy as np
 import tensorflow as tf
 import tqdm
 
+from pathlib import Path
 from second_order_fgnn import GCNPolicy as SecondOrderFGNN
-from utils import load_data_folder
+from utils import load_data_folder, load_milp_instance
 # TODO: import classic GNN
 
 
@@ -72,13 +73,53 @@ def process(model, dataset, optimizer):
     return accumulated_loss / num_samples
 
 
+def process_folder(model, dir_path, optimizer):
+    """Train the network for one epoch.
+    """
+    dir_path = Path(dir_path)
+    prob_paths = dir_path.glob("*")
+    num_samples = len(prob_paths)
+    order = np.arange(num_samples, dtype=int)
+    np.random.shuffle(order)
+
+    train_vars = model.variables
+    accum_gradient = [tf.zeros_like(this_var) for this_var in train_vars]
+    accumulated_loss = 0.0
+    for i in tqdm.tqdm(order):
+        with tf.GradientTape() as tape:
+            (cons_features, edge_indices, edge_features,
+             var_features, branch_scores) = load_milp_instance(prob_paths[i])
+            var_features = tf.constant(var_features, dtype=tf.float32)
+            cons_features = tf.constant(cons_features, dtype=tf.float32)
+            edge_features = tf.constant(edge_features, dtype=tf.float32)
+            edge_indices = tf.constant(edge_indices, dtype=tf.int32)
+            branch_scores = tf.constant(branch_scores, dtype=tf.float32)
+
+            inputs = (cons_features, edge_indices, edge_features,
+                      var_features[i])
+            out = model(inputs, training=True)
+
+            loss = tf.keras.metrics.mean_squared_error(branch_scores[i], out)
+            loss = tf.reduce_mean(loss)
+            grads = tape.gradient(target=loss, sources=train_vars)
+
+            accum_gradient = [(accum_grad + grad)
+                              for accum_grad,grad in zip(accum_gradient, grads)]
+            accumulated_loss += loss.numpy()
+
+    accum_gradient = [this_grad / num_samples for this_grad in accum_gradient]
+    optimizer.apply_gradients(zip(grads, train_vars))
+
+    return accumulated_loss / num_samples
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
     ## Set up dataset
-    (var_features, cons_features, edge_features, edge_indices,
-     branch_scores, num_vars, num_conss, num_edges,
-     var_dim, cons_dim, edge_dim) = load_data_folder(args.data_path)
+    # (var_features, cons_features, edge_features, edge_indices,
+    #  branch_scores, num_vars, num_conss, num_edges,
+    #  var_dim, cons_dim, edge_dim) = load_data_folder(args.data_path)
 
     ## Set up model
     os.makedirs(args.save_path, exist_ok=True)
@@ -99,13 +140,13 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
     tf.compat.v1.random.set_random_seed(args.seed+1)
     with tf.device("GPU:"+str(args.gpu)):
-        var_features = tf.constant(var_features, dtype=tf.float32)
-        cons_features = tf.constant(cons_features, dtype=tf.float32)
-        edge_features = tf.constant(edge_features, dtype=tf.float32)
-        edge_indices = tf.constant(edge_indices, dtype=tf.int32)
-        branch_scores = tf.constant(branch_scores, dtype=tf.float32)
-        train_data = (cons_features, edge_indices, edge_features,
-                      var_features, branch_scores)
+        # var_features = tf.constant(var_features, dtype=tf.float32)
+        # cons_features = tf.constant(cons_features, dtype=tf.float32)
+        # edge_features = tf.constant(edge_features, dtype=tf.float32)
+        # edge_indices = tf.constant(edge_indices, dtype=tf.int32)
+        # branch_scores = tf.constant(branch_scores, dtype=tf.float32)
+        # train_data = (cons_features, edge_indices, edge_features,
+        #               var_features, branch_scores)
 
         # Initialization
         model = MODEL_DICT[args.model](args.emb_size, cons_dim, edge_dim, var_dim)
@@ -115,7 +156,8 @@ if __name__ == "__main__":
 
         ### MAIN LOOP ###
         for epoch in range(args.num_epochs):
-            train_loss = process(model, train_data, optimizer)
+            # train_loss = process(model, train_data, optimizer)
+            train_loss = process_folder(model, args.data_path, optimizer)
 
             print(f"EPOCH: {epoch}, TRAIN LOSS: {train_loss}")
             if train_loss < loss_best:

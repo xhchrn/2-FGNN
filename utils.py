@@ -65,7 +65,6 @@ def load_data_folder(dir_path):
     """
     dir_path = Path(dir_path)
 
-
     (var_features, cons_features, edge_features, edge_indices,
      branch_scores) = [],[],[],[],[]
     for prob in dir_path.glob("*"):
@@ -87,6 +86,15 @@ def load_data_folder(dir_path):
     return (var_features, cons_features, edge_features, edge_indices,
             branch_scores, num_vars, num_conss, num_edges,
             var_dim, cons_dim, edge_dim)
+
+
+def load_milp_instance(p):
+    var_features = np.loadtxt(p/'VarFeatures.csv', delimiter=',', ndmin=2)
+    cons_features = np.loadtxt(p/'ConFeatures.csv', delimiter=',', ndmin=2)
+    edge_features = np.loadtxt(p/'EdgeFeatures.csv', delimiter=',', ndmin=2)
+    edge_indices = np.loadtxt(p/'EdgeIndices.csv', delimiter=',', ndmin=2)
+    branch_scores = np.loadtxt(p/'SBScores.csv', delimiter=',')
+    return var_features, edge_features, edge_indices, cons_features, branch_scores
 
 
 class SecondOrderFGNNConvolution(K.Model):
