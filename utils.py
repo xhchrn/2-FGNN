@@ -68,33 +68,25 @@ def load_data_folder(dir_path):
     (var_features, cons_features, edge_features, edge_indices,
      branch_scores) = [],[],[],[],[]
     for prob in dir_path.glob("*"):
-        var_features.append(np.loadtxt(prob/'VarFeatures.csv', delimiter=',', ndmin=2))
-        cons_features.append(np.loadtxt(prob/'ConFeatures.csv', delimiter=',', ndmin=2))
-        edge_features.append(np.loadtxt(prob/'EdgeFeatures.csv', delimiter=',', ndmin=2))
-        edge_indices.append(np.loadtxt(prob/'EdgeIndices.csv', delimiter=',', ndmin=2))
-        branch_scores.append(np.loadtxt(prob/'SBScores.csv', delimiter=','))
+        vf = np.loadtxt(prob/'VarFeatures.csv', delimiter=',', ndmin=2)
+        cf = np.loadtxt(prob/'ConFeatures.csv', delimiter=',', ndmin=2)
+        ef = np.loadtxt(prob/'EdgeFeatures.csv', delimiter=',', ndmin=2)
+        ei = np.loadtxt(prob/'EdgeIndices.csv', delimiter=',', ndmin=2)
+        bs = np.loadtxt(prob/'SBScores.csv', delimiter=',')
 
-    var_features = np.stack(var_features).astype(np.float32)
-    cons_features = np.stack(cons_features).astype(np.float32)
-    edge_features = np.stack(edge_features).astype(np.float32)
-    edge_indices = np.stack(edge_indices).astype(np.int32).transpose(0,2,1)
-    branch_scores = np.stack(branch_scores).astype(np.float32)
-    num_data, num_vars, var_dim = var_features.shape
-    _, num_conss, cons_dim = cons_features.shape
-    _, num_edges, edge_dim = edge_features.shape
+        var_features.append(tf.constant(vf, dtype=tf.float32))
+        cons_features.append(tf.constant(cf, dtype=tf.float32))
+        edge_features.append(tf.constant(ef, dtype=tf.float32))
+        edge_indices.append(tf.constant(ei.transpose(1,0), dtype=tf.int32))
+        branch_scores.append(tf.constant(bs, dtype=tf.float32))
+
+    num_data = len(var_features)
+    var_dim = int(var_features[0].shape[1])
+    cons_dim = int(cons_features[0].shape[1])
+    edge_dim = int(edge_features[0].shape[1])
 
     return (var_features, cons_features, edge_features, edge_indices,
-            branch_scores, num_vars, num_conss, num_edges,
-            var_dim, cons_dim, edge_dim)
-
-
-def load_milp_instance(p):
-    var_features = np.loadtxt(p/'VarFeatures.csv', delimiter=',', ndmin=2)
-    cons_features = np.loadtxt(p/'ConFeatures.csv', delimiter=',', ndmin=2)
-    edge_features = np.loadtxt(p/'EdgeFeatures.csv', delimiter=',', ndmin=2)
-    edge_indices = np.loadtxt(p/'EdgeIndices.csv', delimiter=',', ndmin=2)
-    branch_scores = np.loadtxt(p/'SBScores.csv', delimiter=',')
-    return var_features, edge_features, edge_indices, cons_features, branch_scores
+            branch_scores, var_dim, cons_dim, edge_dim)
 
 
 class SecondOrderFGNNConvolution(K.Model):
@@ -188,3 +180,4 @@ if __name__ == "__main__":
 
     print(np.allclose(s_output_tf.eval(), s_output_numpy))
     print(np.allclose(t_output_tf.eval(), t_output_numpy))
+
