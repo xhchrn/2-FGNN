@@ -114,7 +114,7 @@ class SecondOrderFGNNConvolution(K.Model):
         return s_features, t_features
 
 
-class GCNPolicy(K.Model):
+class SecondOrderFGNN(K.Model):
     """Desc
     """
     def __init__(self, embSize, nConsF, nEdgeF, nVarF):
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     tf.compat.v1.enable_eager_execution(config)
     tf.executing_eagerly()
 
-    net = GCNPolicy(8, 2, 1 ,4)
+    net = SecondOrderFGNN(8, 2, 1 ,4)
     cons_feats = tf.random.normal(shape=(3,2))
     edge_indices = tf.cast(tf.random.uniform(shape=(2,7))*5, tf.int32)
     edge_feats = tf.random.normal(shape=(7,1))

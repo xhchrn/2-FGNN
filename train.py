@@ -8,9 +8,8 @@ import numpy as np
 import tensorflow as tf
 import tqdm
 
-from pathlib import Path
-from second_order_fgnn import GCNPolicy as SecondOrderFGNN
-from utils import load_data_folder
+from second_order_fgnn import SecondOrderFGNN
+from utils import load_data_folder, setup_logger
 # TODO: import classic GNN
 
 
@@ -20,8 +19,6 @@ MODEL_DICT = {
 }
 
 parser = argparse.ArgumentParser()
-# parser.add_argument("--data", type=int, default=100,
-#                     help="number of training data")
 parser.add_argument("--gpu", type=int, default=0,
                     help="index of the gpu used for training")
 parser.add_argument("--emb-size", type=int, default=6,
@@ -78,6 +75,7 @@ if __name__ == "__main__":
 
     ## Set up model
     os.makedirs(args.save_path, exist_ok=True)
+    logger = setup_logger(args.save_path)
     model_save_path = os.path.join(args.save_path, 'model.pkl')
 
     # Set up TensorFlow Eager mode
@@ -110,10 +108,10 @@ if __name__ == "__main__":
         for epoch in range(args.num_epochs):
             train_loss = process(model, train_data, optimizer)
 
-            print(f"EPOCH: {epoch}, TRAIN LOSS: {train_loss}")
+            logger.info(f"EPOCH: {epoch}, TRAIN LOSS: {train_loss}")
             if train_loss < loss_best:
                 model.save_state(model_save_path)
-                print("model saved to:", model_save_path)
+                logger.info("model saved to:", model_save_path)
                 loss_best = train_loss
 
         model.summary()

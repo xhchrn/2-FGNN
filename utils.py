@@ -1,8 +1,24 @@
+
+import logging
 import numpy as np
+import os
 import tensorflow as tf
 import tensorflow.keras as K
 
 from pathlib import Path
+
+
+def set_logging_config(logdir):
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
+    logging.basicConfig(
+        format="[%(asctime)s] [%(name)s] %(message)s",
+        level=logging.INFO,
+        handlers=[logging.FileHandler(os.path.join(logdir, 'log.txt')),
+                  logging.StreamHandler(os.sys.stdout)]
+    )
+    return logging.getLogger('main')
+
 
 def get_dense_edge_indices(dim1, dim2):
     """Return a list of edge indices of a dense graph.
