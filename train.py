@@ -108,10 +108,10 @@ if __name__ == "__main__":
         for epoch in range(args.num_epochs):
             train_loss = process(model, train_data, optimizer)
 
-            logger.info(f"EPOCH: {epoch}, TRAIN LOSS: {train_loss}")
+            logger.info(f"Epoch: {epoch}, Train loss: {train_loss}")
             if train_loss < loss_best:
                 model.save_state(model_save_path)
-                logger.info("model saved to:", model_save_path)
+                logger.info(f"Model checkpoint saved to: {model_save_path}")
                 loss_best = train_loss
 
         model.summary()

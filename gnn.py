@@ -104,7 +104,7 @@ class GNN(K.Model):
         self.var_nfeats = nVarF
 
         self.activation = K.activations.relu
-        self.initializer = K.initializers.Orthogonal()
+        self.initializer = tf.keras.initializers.RandomNormal(0.0, 0.2)
 
         # CONSTRAINT EMBEDDING
         self.cons_embedding = K.layers.Dense(units=self.emb_size,
