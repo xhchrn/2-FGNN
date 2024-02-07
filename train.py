@@ -10,6 +10,7 @@ import tensorflow as tf
 import tqdm
 
 from gnn import GNN
+from pathlib import Path
 from second_order_fgnn import SecondOrderFGNN
 from utils import load_data_folder
 
@@ -41,11 +42,11 @@ parser.add_argument("--save-path", type=str, default='./results/default',
 def setup_logger(logdir):
     if not os.path.exists(logdir):
         os.makedirs(logdir)
+    logdir = Path(logdir)
     logging.basicConfig(
         format="[%(asctime)s] [%(name)s] %(message)s",
         level=logging.INFO,
-        filemode="w",
-        handlers=[logging.FileHandler(os.path.join(logdir, 'log.txt')),
+        handlers=[logging.FileHandler(logdir/'log.txt', mode='w'),
                   logging.StreamHandler(os.sys.stdout)]
     )
     return logging.getLogger('main')
