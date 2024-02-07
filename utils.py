@@ -8,7 +8,7 @@ import tensorflow.keras as K
 from pathlib import Path
 
 
-def set_logging_config(logdir):
+def setup_logger(logdir):
     if not os.path.exists(logdir):
         os.makedirs(logdir)
     logging.basicConfig(
