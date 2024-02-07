@@ -8,14 +8,14 @@ import numpy as np
 import tensorflow as tf
 import tqdm
 
+from gnn import GNN
 from second_order_fgnn import SecondOrderFGNN
 from utils import load_data_folder, setup_logger
-# TODO: import classic GNN
 
 
 MODEL_DICT = {
+    'GNN': GNN,
     'SecondOrderFGNN': SecondOrderFGNN,
-    'GNN': None, #TODO
 }
 
 parser = argparse.ArgumentParser()
