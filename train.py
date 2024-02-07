@@ -4,13 +4,14 @@
 import argparse
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+import logging
 import numpy as np
 import tensorflow as tf
 import tqdm
 
 from gnn import GNN
 from second_order_fgnn import SecondOrderFGNN
-from utils import load_data_folder, setup_logger
+from utils import load_data_folder
 
 
 MODEL_DICT = {
@@ -35,6 +36,19 @@ parser.add_argument("--seed", type=int, default=1812,
                     help="random seed for reproducibility")
 parser.add_argument("--save-path", type=str, default='./results/default',
                     help="path where checkpoints and logs are saved")
+
+
+def setup_logger(logdir):
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
+    logging.basicConfig(
+        format="[%(asctime)s] [%(name)s] %(message)s",
+        level=logging.INFO,
+        filemode="w",
+        handlers=[logging.FileHandler(os.path.join(logdir, 'log.txt')),
+                  logging.StreamHandler(os.sys.stdout)]
+    )
+    return logging.getLogger('main')
 
 
 def process(model, dataset, optimizer):
