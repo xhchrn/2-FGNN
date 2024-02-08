@@ -7,6 +7,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 import logging
 import numpy as np
 import tensorflow as tf
+import tensorflow.keras as K
 import tqdm
 
 from gnn import GNN
@@ -27,6 +28,8 @@ parser.add_argument("--emb-size", type=int, default=6,
                     help="embedding size of hidden states in 2-FGNN")
 parser.add_argument("--lr", type=float, default=3e-4,
                     help="initial learning rate")
+parser.add_argument("--lr-decay", type=str, default=None,
+                    help="learning rate scheduling")
 parser.add_argument("--num-epochs", type=int, default="10000",
                     help="num of epochs for training")
 parser.add_argument("--data-path", type=str,
@@ -115,7 +118,14 @@ if __name__ == "__main__":
 
         # Initialization
         model = MODEL_DICT[args.model](args.emb_size, cons_dim, edge_dim, var_dim)
-        optimizer = tf.keras.optimizers.Adam(learning_rate=args.lr)
+        if args.lr_decay is None:
+            lr = args.lr
+        elif args.lr_decay == 'exponential':
+            lr = K.optimizers.schedules.ExponentialDecay(
+                args.lr, decay_steps=500, decay_rate=0.9, staircase=True)
+        else:
+            raise NotImplementedError
+        optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
         loss_best = 1e10
 
