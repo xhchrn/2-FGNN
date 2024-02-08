@@ -126,7 +126,7 @@ class SecondOrderFGNN(K.Model):
         self.var_nfeats = nVarF
 
         self.activation = K.activations.relu
-        self.initializer = tf.keras.initializers.RandomNormal(0.0, 0.2)
+        self.initializer = tf.keras.initializers.Orthogonal()
 
         # Embeddings
         self.s_embedding = SecondOrderEmbeddingLayer(self.emb_size,

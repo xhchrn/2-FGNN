@@ -104,7 +104,7 @@ class GNN(K.Model):
         self.var_nfeats = nVarF
 
         self.activation = K.activations.relu
-        self.initializer = tf.keras.initializers.RandomNormal(0.0, 0.2)
+        self.initializer = tf.keras.initializers.Orthogonal()
 
         # CONSTRAINT EMBEDDING
         self.cons_embedding = K.layers.Dense(units=self.emb_size,
@@ -196,7 +196,7 @@ class GNN(K.Model):
         edge_features = self.edge_embedding(edge_features)
         variable_features = self.var_embedding(variable_features)
 
-        # GRAPH CONVOLUTIONS
+        # Graph convolutions - layer 1
         constraint_features = self.conv_v_to_c((
             constraint_features, edge_indices, edge_features, variable_features, num_conss))
         constraint_features = self.activation(constraint_features)
@@ -205,6 +205,7 @@ class GNN(K.Model):
             constraint_features, edge_indices, edge_features, variable_features, num_vars))
         variable_features = self.activation(variable_features)
 
+        # Graph convolutions - layer 2
         constraint_features = self.conv_v_to_c2((
             constraint_features, edge_indices, edge_features, variable_features, num_conss))
         constraint_features = self.activation(constraint_features)
@@ -215,7 +216,7 @@ class GNN(K.Model):
 
         # OUTPUT
         output = self.output_module(variable_features)
-        return output
+        return tf.squeeze(output, -1)
 
     def save_state(self, path):
         with open(path, 'wb') as f:
