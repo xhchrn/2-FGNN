@@ -19,7 +19,7 @@ parser.add_argument("--seed", type=int, default=42, help='random seed')
 parser.add_argument("--data-dir", type=str, default='data/2fgnn', help='location to save generated data')
 
 
-class VanillaFullstrongBranchingDataCollector(scip.Branchrule):
+class RootStrongBranchingScoreCollector(scip.Branchrule):
     """Branching policy for collecting vanilla strong branching score.
     """
     def __init__(self):
@@ -38,6 +38,8 @@ class VanillaFullstrongBranchingDataCollector(scip.Branchrule):
         best_var = cands_[bestcand]
         self.model.branchVar(best_var)
         result = scip.SCIP_RESULT.BRANCHED
+
+        self.model.interruptSolve()
 
         return {'result':result}
 
@@ -101,15 +103,8 @@ def generate_unfoldable(m, n, nnz):
     return opt_model, x_vars, cons_feats, edge_feats, edge_inds, var_feats
 
 
-def get_root_strong_branch_scores(model, seed=1812, tol=1e-10):
+def get_root_strong_branch_scores(model, seed=1812, tol=1e-6):
     set_model_params(model, seed=seed)
-
-    branchrule = VanillaFullstrongBranchingDataCollector()
-    # Set `maxdepth` to 0 so that only root branching is executed
-    model.includeBranchrule(
-        branchrule=branchrule,
-        name="Sampling branching rule", desc="",
-        priority=666666, maxdepth=0, maxbounddist=1)
 
     model.setBoolParam('branching/vanillafullstrong/integralcands', True)
     model.setBoolParam('branching/vanillafullstrong/scoreall', True)
@@ -117,8 +112,14 @@ def get_root_strong_branch_scores(model, seed=1812, tol=1e-10):
     model.setBoolParam('branching/vanillafullstrong/donotbranch', True)
     model.setBoolParam('branching/vanillafullstrong/idempotent', True)
 
-    model.optimize()
+    branchrule = RootStrongBranchingScoreCollector()
+    # Set `maxdepth` to 0 so that only root branching is executed
+    model.includeBranchrule(
+        branchrule=branchrule,
+        name="Sampling branching rule", desc="",
+        priority=666666, maxdepth=0, maxbounddist=1)
 
+    model.optimize()
     if branchrule.scores is None or branchrule.cands is None:
         if model.getStatus() == "optimal":
             return np.zeros(shape=(model.getNVars(),1))
@@ -126,8 +127,11 @@ def get_root_strong_branch_scores(model, seed=1812, tol=1e-10):
             return None
 
     bs_scores = np.zeros(shape=(model.getNVars(),1))
+    vnames = [v.name for v in model.getVars()]
     for v, s in zip(branchrule.cands, branchrule.scores):
-        j = int(v.name.split('_')[-1])
+        if v.name.startswith('t_'):
+            vname = v.name.split('_')[-1]
+        j = vnames.index(vname)
         bs_scores[j] = s if s >= tol else 0.0
     return bs_scores
 
@@ -182,12 +186,15 @@ if __name__ == "__main__":
         sb_scores = get_root_strong_branch_scores(model, seed=args.seed+total)
 
         status = model.getStatus()
-        if status not in ['optimal', 'infeasible']:
-            print(f'WARNING - unexpected status: {status}')
-            unexpected += 1
-            continue
+        # if status not in ['optimal', 'infeasible']:
+        #     print(f'WARNING - unexpected status: {status}')
+        #     unexpected += 1
+        #     continue
 
         if sb_scores is None:
+            continue
+
+        if sb_scores.max() < 1e-2 or sb_scores.max() > 1e1:
             continue
 
         outpath = os.path.join(args.data_dir, f'unfoldable_{adopted}')
@@ -203,3 +210,4 @@ if __name__ == "__main__":
 
     print(f"Ratio of adopted instances: {adopted}/{total}")
     print(f"Ratio of unexpected instances: {unexpected}/{total}")
+
