@@ -36,10 +36,14 @@ parser.add_argument("--data-path", type=str,
                     help="path to the directory that contains training data")
 parser.add_argument("--model", type=str, choices=['SecondOrderFGNN', 'GNN'],
                     help="type of model that is trained")
+parser.add_argument("--optimizer", type=str, default='Adam', choices=['Adam', 'SGD'],
+                    help="type of optimizer to use")
 parser.add_argument("--seed", type=int, default=1812,
                     help="random seed for reproducibility")
 parser.add_argument("--save-path", type=str, default='./results/default',
                     help="path where checkpoints and logs are saved")
+parser.add_argument("--best-wait", type=int, default=-1,
+                    help="number of epochs of waiting for better training loss")
 
 
 def setup_logger(logdir):
@@ -83,7 +87,11 @@ def process(model, dataset, optimizer):
             accumulated_loss += loss.numpy()
 
     accum_gradient = [this_grad / num_samples for this_grad in accum_gradient]
+    # import ipdb; ipdb.set_trace(context=10)
     optimizer.apply_gradients(zip(accum_gradient, train_vars))
+
+    print(out.numpy())
+    print(branch_scores[i].numpy())
 
     return accumulated_loss / num_samples
 
@@ -118,16 +126,21 @@ if __name__ == "__main__":
 
         # Initialization
         model = MODEL_DICT[args.model](args.emb_size, cons_dim, edge_dim, var_dim)
-        if args.lr_decay is None:
-            lr = args.lr
-        elif args.lr_decay == 'exponential':
-            lr = K.optimizers.schedules.ExponentialDecay(
-                args.lr, decay_steps=500, decay_rate=0.9, staircase=True)
-        else:
-            raise NotImplementedError
-        optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+        #if args.lr_decay is None:
+        lr = args.lr
+        # elif args.lr_decay == 'exponential':
+        #     lr = K.optimizers.schedules.ExponentialDecay(
+        #         args.lr, decay_steps=500, decay_rate=0.9, staircase=True)
+        # else:
+        #     raise NotImplementedError
+        if args.optimizer == 'Adam':
+            optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+        elif args.optimizer == 'SGD':
+            optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
 
+        decay_1 = decay_2 = decay_3 = False
         loss_best = 1e10
+        best_epoch = -1
 
         ### MAIN LOOP ###
         for epoch in range(args.num_epochs):
@@ -135,8 +148,29 @@ if __name__ == "__main__":
 
             logger.info(f"Epoch: {epoch}, Train loss: {train_loss}")
             if train_loss < loss_best:
-                model.save_state(model_save_path)
-                logger.info(f"Model checkpoint saved to: {model_save_path}")
+                # model.save_state(model_save_path)
+                # logger.info(f"Model checkpoint saved to: {model_save_path}")
                 loss_best = train_loss
+                best_epoch = epoch
+            elif args.best_wait > 0 and epoch - best_epoch >= args.best_wait:
+                lr *= 0.5
+                logger.info(f"Loss has not improved for {args.best_wait} epochs. Learning rate decayed to {lr}")
+                optimizer.lr.assign(new_lr)
+
+            if not decay_1 and train_loss < 1e-6:
+                new_lr = lr * 0.1
+                logger.info(f"Loss reached 1e-6. Learning rate decayed to {new_lr}")
+                optimizer.lr.assign(new_lr)
+                decay_1 = True
+            if not decay_2 and train_loss < 1e-12:
+                new_lr = lr * 0.05
+                logger.info(f"Loss reached 1e-12. Learning rate decayed to {new_lr}")
+                optimizer.lr.assign(new_lr)
+                decay_2 = True
+            if not decay_3 and train_loss < 1e-14:
+                new_lr = lr * 0.001
+                logger.info(f"Loss reached 1e-14. Learning rate decayed to {new_lr}")
+                optimizer.lr.assign(new_lr)
+                decay_3 = True
 
         model.summary()
