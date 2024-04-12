@@ -24,17 +24,23 @@ class BipartiteGraphConvolution(K.Model):
             K.layers.Dense(units=emb_size, kernel_initializer=initializer),
             K.layers.Activation(self.activation),
             K.layers.Dense(units=emb_size, kernel_initializer=initializer),
+            K.layers.Activation(self.activation),
+            K.layers.Dense(units=emb_size, kernel_initializer=initializer),
         ])
         self.feature_module_edge = K.Sequential([
         ])
         self.feature_module_right = K.Sequential([
-            K.layers.Dense(units=emb_size, use_bias=False, kernel_initializer=initializer),
+            K.layers.Dense(units=emb_size, kernel_initializer=initializer),
+            K.layers.Activation(self.activation),
+            K.layers.Dense(units=emb_size, kernel_initializer=initializer),
             K.layers.Activation(self.activation),
             K.layers.Dense(units=emb_size, kernel_initializer=initializer),
         ])
 
         # output_layers
         self.output_module = K.Sequential([
+            K.layers.Dense(units=emb_size, kernel_initializer=initializer),
+            K.layers.Activation(self.activation),
             K.layers.Dense(units=emb_size, kernel_initializer=initializer),
             K.layers.Activation(self.activation),
             K.layers.Dense(units=emb_size, kernel_initializer=initializer),
@@ -104,7 +110,8 @@ class GNN(K.Model):
         self.var_nfeats = nVarF
 
         self.activation = K.activations.relu
-        self.initializer = tf.keras.initializers.Orthogonal()
+        # self.initializer = tf.keras.initializers.Orthogonal()
+        self.initializer = tf.keras.initializers.RandomNormal(0.0, 0.02)
 
         # CONSTRAINT EMBEDDING
         self.cons_embedding = K.layers.Dense(units=self.emb_size,

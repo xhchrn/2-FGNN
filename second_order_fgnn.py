@@ -67,8 +67,12 @@ class SecondOrderFGNNConvolution(K.Model):
             K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
             K.layers.Activation(self.activation),
             K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
+            K.layers.Activation(self.activation),
+            K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
         ])
         self.t_update_layer = K.Sequential([
+            K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
+            K.layers.Activation(self.activation),
             K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
             K.layers.Activation(self.activation),
             K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
@@ -78,8 +82,12 @@ class SecondOrderFGNNConvolution(K.Model):
             K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
             K.layers.Activation(self.activation),
             K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
+            K.layers.Activation(self.activation),
+            K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
         ])
         self.t_output_layer = K.Sequential([
+            K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
+            K.layers.Activation(self.activation),
             K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
             K.layers.Activation(self.activation),
             K.layers.Dense(units=self.emb_size, kernel_initializer=self.initializer),
@@ -126,7 +134,9 @@ class SecondOrderFGNN(K.Model):
         self.var_nfeats = nVarF
 
         self.activation = K.activations.relu
-        self.initializer = tf.keras.initializers.Orthogonal()
+        # self.activation = K.activations.elu
+        # self.initializer = tf.keras.initializers.Orthogonal()
+        self.initializer = tf.keras.initializers.RandomNormal(0.0, 0.02)
 
         # Embeddings
         self.s_embedding = SecondOrderEmbeddingLayer(self.emb_size,
@@ -204,6 +214,7 @@ class SecondOrderFGNN(K.Model):
                                       variable_features,
                                       edge_features,
                                       edge_indices)
+        # import ipdb; ipdb.set_trace(context=20)
 
         # Vars-Vars Embeddings
         num_vars = int(variable_features.shape[0])
@@ -213,21 +224,25 @@ class SecondOrderFGNN(K.Model):
                                       variable_features,
                                       d_feats,
                                       d_indices)
+        # import ipdb; ipdb.set_trace(context=20)
 
         # Graph convolutions - layer 1
         s_features, t_features = self.conv_st_1((s_features, t_features))
         s_features = self.activation(s_features)
         t_features = self.activation(t_features)
+        # import ipdb; ipdb.set_trace(context=20)
         # Graph convolutions - layer 2
         s_features, t_features = self.conv_st_2((s_features, t_features))
         s_features = self.activation(s_features)
         t_features = self.activation(t_features)
+        # import ipdb; ipdb.set_trace(context=20)
 
         # Summation of features over variables
         joint_features = tf.concat([tf.reduce_sum(s_features, axis=0),
                                     tf.reduce_sum(t_features, axis=0)],
                                    axis=1)
         output = self.output_module(joint_features)
+        # import ipdb; ipdb.set_trace(context=20)
 
         return tf.squeeze(output, -1)
 
